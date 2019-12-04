@@ -20,7 +20,7 @@ from tf2onnx.rewriter.rnn import rewrite_single_direction_lstm, rewrite_bi_direc
     rewrite_custom_rnn_cell, rewrite_generic_loop
 from tf2onnx.rewriter.thresholded_relu_rewriter import rewrite_thresholded_relu
 from tf2onnx.rewriter.transpose_rewriter import rewrite_transpose
-
+from tf2onnx.rewriter.fake_quant_rewriter import rewrite_fake_quant_with_min_max_vars
 __all__ = [
     "rewrite_cond",
     "rewrite_conv2d_with_pad",
@@ -41,4 +41,5 @@ __all__ = [
     "rewrite_bi_direction_gru",
     "rewrite_custom_rnn_cell",
     "rewrite_generic_loop",
+    "rewrite_fake_quant_with_min_max_vars",
 ]

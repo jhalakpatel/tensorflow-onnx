@@ -81,14 +81,22 @@ def conv_convert_inputs(ctx, node, with_kernel=False, new_kernel_shape=None,
                 reshape.set_attr("shape", new_kernel_shape)
                 reshape.skip_conversion = True
             else:
-                # new reshape takes new shape as input[1]
-                shape_name = utils.make_name(node.name)
-                ctx.make_const(shape_name, np.array(new_kernel_shape, dtype=np.int64))
-                input_name = node.input[1]
-                reshape = ctx.make_node("Reshape", [input_name, shape_name])
-                ctx.replace_input(node, input_name, reshape.output[0])
-                reshape.skip_conversion = True
-            ctx.set_shape(reshape.output[0], new_kernel_shape)
+                if node.inputs[1].type == "DequantizeLinear":
+                    dequant_node = node.inputs[1]
+                    quant_node = dequant_node.inputs[0]
+                    parent = quant_node.inputs[0]
+                    val = parent.get_tensor_value(as_list=False)
+                    val = val.transpose(constants.KCRS_TO_CKRS)
+                    parent.set_tensor_value(val)
+                else:
+                    # new reshape takes new shape as input[1]
+                    shape_name = utils.make_name(node.name)
+                    ctx.make_const(shape_name, np.array(new_kernel_shape, dtype=np.int64))
+                    input_name = node.input[1]
+                    reshape = ctx.make_node("Reshape", [input_name, shape_name])
+                    ctx.replace_input(node, input_name, reshape.output[0])
+                    reshape.skip_conversion = True
+                    ctx.set_shape(reshape.output[0], new_kernel_shape)
 
         parent = node.inputs[1]
         need_transpose = True
@@ -102,12 +110,13 @@ def conv_convert_inputs(ctx, node, with_kernel=False, new_kernel_shape=None,
                 need_transpose = False
 
         if need_transpose:
-            input_name = node.input[1]
-            transpose = ctx.insert_new_node_on_input(node, "Transpose", input_name)
-            transpose.set_attr("perm", constants.HWCN_TO_NCHW)
-            transpose.skip_conversion = True
-            new_shape = spatial_map(ctx.get_shape(input_name), constants.HWCN_TO_NCHW)
-            ctx.set_shape(transpose.output[0], new_shape)
+            if node.inputs[1].type != "DequantizeLinear":
+                input_name = node.input[1]
+                transpose = ctx.insert_new_node_on_input(node, "Transpose", input_name)
+                transpose.set_attr("perm", constants.HWCN_TO_NCHW)
+                transpose.skip_conversion = True
+                new_shape = spatial_map(ctx.get_shape(input_name), constants.HWCN_TO_NCHW)
+                ctx.set_shape(transpose.output[0], new_shape)
 
     # transpose outputs if needed
     if node.is_nhwc():

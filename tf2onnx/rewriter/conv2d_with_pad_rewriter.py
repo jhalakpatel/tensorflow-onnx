@@ -42,12 +42,21 @@ def rewrite_conv2d_with_pad(g, ops):
 
         logger.debug("merge pad [%s] into conv [%s]", pad.name, conv.name)
         paddings_val = np.array(paddings.get_tensor_value())
-        # can't pad on batch or channel dimensions
-        if np.any(paddings_val[0]) or np.any(paddings_val[3]):
-            continue
 
-        paddings_val = paddings_val[1:3]
-        paddings_val = paddings_val.transpose().flatten()
+        if not conv.is_nhwc():
+            # can't pad on batch or channel dimensions
+
+            if np.any(paddings_val[0]) or np.any(paddings_val[1]):
+                continue
+            paddings_val = paddings_val[2:4]
+            paddings_val = paddings_val.transpose().flatten()
+        else:
+            # can't pad on batch or channel dimensions
+            if np.any(paddings_val[0]) or np.any(paddings_val[3]):
+                continue
+            paddings_val = paddings_val[1:3]
+            paddings_val = paddings_val.transpose().flatten()
+
         g.replace_input(conv, conv.input[0], pad.input[0])
         # convert Conv2D
         conv.type = "Conv"
