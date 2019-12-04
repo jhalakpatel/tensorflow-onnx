@@ -552,7 +552,8 @@ def process_tf_graph(tf_graph, continue_on_error=False, verbose=False, target=No
 
     # pre-processing graph rewrites
     # bi-directional re-writer should be placed after single directional re-writer
-    rewriters = [rewrite_fake_quant_with_min_max_vars, rewrite_transpose, rewrite_flatten, rewrite_gemm,
+    rewriters = [rewrite_fake_quant_with_min_max_vars, rewrite_quantize_and_dequantize_v3,
+                 rewrite_transpose, rewrite_flatten, rewrite_gemm,
                  rewrite_random_uniform, rewrite_random_uniform_fold_const,
                  rewrite_random_normal, rewrite_dropout, rewrite_eye,
                  rewrite_leakyrelu, rewrite_thresholded_relu, rewrite_conv2d_with_pad,

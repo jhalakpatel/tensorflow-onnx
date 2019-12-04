@@ -30,16 +30,7 @@ def convertRSCKtoKCRS(weight):
         val = val.transpose(constants.HWCN_TO_NCHW)
     weight.set_tensor_value(val)
 
-def rewrite_fake_quant_with_min_max_vars(g, ops):
-    pattern = \
-        OpTypePattern('FakeQuantWithMinMaxVars', name='output', inputs=[
-            OpTypePattern("*"),
-            OpTypePattern(None),
-            OpTypePattern(None),
-        ])
-
-    matcher = GraphMatcher(pattern)
-    match_results = list(matcher.match_ops(ops))
+def create_qdq_nodes(g, match_results):
     for match in match_results:
         old_output = match.get_op('output')
         output_dtype = g.get_dtype(old_output.output[0])
@@ -65,5 +56,27 @@ def rewrite_fake_quant_with_min_max_vars(g, ops):
         y_inv_zero_point = g.make_const(name=utils.make_name("y_inv_zero_point"), np_val=np.int8(0))
         dequant_node = g.make_node(op_type = "DequantizeLinear", inputs=[quant_node.output[0], y_inv_scale.output[0], y_inv_zero_point.output[0]], outputs = [old_output.output[0]], shapes=[output_shape], dtypes=[output_dtype], name=utils.make_name("DequantLinearNode"))
         g.set_shape(dequant_node.output[0], output_shape)
-
     return g.get_nodes()
+
+def rewrite_quantize_and_dequantize_v3(g, ops):
+    pattern = \
+        OpTypePattern('QuantizeAndDequantizeV3', name='output', inputs=[
+            OpTypePattern("*"),
+            OpTypePattern(None),
+            OpTypePattern(None),
+            OpTypePattern(None),
+        ])
+    matcher = GraphMatcher(pattern)
+    match_results = list(matcher.match_ops(ops))
+    return create_qdq_nodes(g, match_results)
+
+def rewrite_fake_quant_with_min_max_vars(g, ops):
+    pattern = \
+        OpTypePattern('FakeQuantWithMinMaxVars', name='output', inputs=[
+            OpTypePattern("*"),
+            OpTypePattern(None),
+            OpTypePattern(None),
+        ])
+    matcher = GraphMatcher(pattern)
+    match_results = list(matcher.match_ops(ops))
+    return create_qdq_nodes(g, match_results)
