@@ -39,12 +39,12 @@ def create_qdq_nodes(g, match_results):
         min_value = extract_numpy_array(old_output.inputs[1])
         max_value = extract_numpy_array(old_output.inputs[2])
         dynamic_range = max(abs(min_value), abs(max_value))
-        scale = dynamic_range / 127.0
-        inv_scale = 127.0 / dynamic_range
+        quant_scale = dynamic_range / 127.0
+        dequant_scale = dynamic_range / 127.0
 
-        y_scale = g.make_const(name=utils.make_name("y_scale"), np_val = scale)
+        y_quant_scale = g.make_const(name=utils.make_name("y_quant_scale"), np_val = quant_scale)
         y_zero_point = g.make_const(name=utils.make_name("y_zero_point"), np_val=np.int8(0))
-        quant_node = g.make_node(op_type = "QuantizeLinear", inputs=[old_output.input[0], y_scale.output[0], y_zero_point.output[0]], shapes=[output_shape], dtypes=[output_dtype], name=utils.make_name("QuantLinearNode"))
+        quant_node = g.make_node(op_type = "QuantizeLinear", inputs=[old_output.input[0], y_quant_scale.output[0], y_zero_point.output[0]], shapes=[output_shape], dtypes=[output_dtype], name=utils.make_name("QuantLinearNode"))
         g.set_shape(quant_node.output[0], output_shape)
 
         if quant_node.inputs[0].is_const():
@@ -52,9 +52,9 @@ def create_qdq_nodes(g, match_results):
 
         g.remove_node(old_output.name)
 
-        y_inv_scale = g.make_const(name=utils.make_name("y_inv_scale"), np_val = inv_scale)
+        y_dequant_scale = g.make_const(name=utils.make_name("y_dequant_scale"), np_val = dequant_scale)
         y_inv_zero_point = g.make_const(name=utils.make_name("y_inv_zero_point"), np_val=np.int8(0))
-        dequant_node = g.make_node(op_type = "DequantizeLinear", inputs=[quant_node.output[0], y_inv_scale.output[0], y_inv_zero_point.output[0]], outputs = [old_output.output[0]], shapes=[output_shape], dtypes=[output_dtype], name=utils.make_name("DequantLinearNode"))
+        dequant_node = g.make_node(op_type = "DequantizeLinear", inputs=[quant_node.output[0], y_dequant_scale.output[0], y_inv_zero_point.output[0]], outputs = [old_output.output[0]], shapes=[output_shape], dtypes=[output_dtype], name=utils.make_name("DequantLinearNode"))
         g.set_shape(dequant_node.output[0], output_shape)
     return g.get_nodes()
 
